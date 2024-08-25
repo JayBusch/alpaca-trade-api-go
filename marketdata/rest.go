@@ -141,6 +141,11 @@ type baseRequest struct {
 	Sort     Sort
 }
 
+type basePaginatedRequest struct {
+	baseRequest
+	PageToken string
+}
+
 func (c *Client) setBaseQuery(q url.Values, req baseRequest) {
 	if len(req.Symbols) > 0 {
 		q.Set("symbols", strings.Join(req.Symbols, ","))
@@ -166,6 +171,13 @@ func (c *Client) setBaseQuery(q url.Values, req baseRequest) {
 	}
 	if req.Sort != "" {
 		q.Set("sort", string(req.Sort))
+	}
+}
+
+func (c *Client) setBasePaginatedQuery(q url.Values, req basePaginatedRequest) {
+	c.setBaseQuery(q, req.baseRequest)
+	if req.PageToken != "" {
+		q.Set("page_token", req.PageToken)
 	}
 }
 
@@ -270,6 +282,68 @@ func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[str
 	}
 	return trades, nil
 }
+
+// GetPagedTradesRequest contains optional parameters for getting trades in a paginated way.
+type GetPagedTradesRequest struct {
+	GetTradesRequest
+	PageToken string
+}
+
+// GetPagedTrades returns the trades for the given symbol.
+func (c *Client) GetPagedTrades(symbol string, req GetPagedTradesRequest) ([]Trade, string, error) {
+	resp, nextPageToken, err := c.GetPagedMultiTrades([]string{symbol}, req)
+	if err != nil {
+		return nil, "", err
+	}
+	return resp[symbol], nextPageToken, nil
+}
+
+// GetMultiTrades returns trades for the given symbols.
+func (c *Client) GetPagedMultiTrades(symbols []string, req GetPagedTradesRequest) (map[string][]Trade, string, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/trades", c.opts.BaseURL, stockPrefix))
+	if err != nil {
+		return nil, "", err
+	}
+
+	q := u.Query()
+	c.setBasePaginatedQuery(q, basePaginatedRequest { 
+		baseRequest : baseRequest {
+			Symbols:  symbols,
+			Start:    req.Start,
+			End:      req.End,
+			Feed:     req.Feed,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
+			Sort:     req.Sort,
+		}, 
+		PageToken: req.PageToken,
+	})
+
+	trades := make(map[string][]Trade, len(symbols))
+	received := 0
+	setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var tradeResp multiTradeResponse
+	if err = unmarshal(resp, &tradeResp); err != nil {
+		return nil, "", err
+	}
+
+	for symbol, t := range tradeResp.Trades {
+		trades[symbol] = append(trades[symbol], t...)
+		received += len(t)
+	}
+	if tradeResp.NextPageToken == nil {
+		return trades, "", nil
+	}
+	return trades, *tradeResp.NextPageToken, nil
+}
+
 
 // GetQuotesRequest contains optional parameters for getting quotes
 type GetQuotesRequest struct {
