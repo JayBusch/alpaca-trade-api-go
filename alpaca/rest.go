@@ -759,6 +759,14 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	if err != nil {
 		return nil, err
 	}
+/*
+	bodyBytes, err := io.ReadAll(resp.Body)
+    	if err != nil {
+        	panic(err)
+    	}
+    	bodyString := string(bodyBytes)
+	fmt.Printf("\n\n lib bodyString: %s\n\n",bodyString)
+*/
 
 	var announcements announcementSlice
 	if err = unmarshal(resp, &announcements); err != nil {

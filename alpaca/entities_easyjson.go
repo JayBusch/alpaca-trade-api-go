@@ -2674,7 +2674,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca20(in *jlexe
 			out.TargetOriginalCusip = string(in.String())
 		case "declaration_date":
 			out.DeclarationDate = string(in.String())
-		case "expiration_date":
+		case "ex_date":
 			out.ExpirationDate = string(in.String())
 		case "record_date":
 			out.RecordDate = string(in.String())
@@ -2746,7 +2746,7 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca20(out *jwri
 		out.String(string(in.DeclarationDate))
 	}
 	{
-		const prefix string = ",\"expiration_date\":"
+		const prefix string = ",\"ex_date\":"
 		out.RawString(prefix)
 		out.String(string(in.ExpirationDate))
 	}

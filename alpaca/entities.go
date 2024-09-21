@@ -309,7 +309,7 @@ type Announcement struct {
 	TargetSymbol            string `json:"target_symbol"`
 	TargetOriginalCusip     string `json:"target_original_cusip"`
 	DeclarationDate         string `json:"declaration_date"`
-	ExpirationDate          string `json:"expiration_date"`
+	ExpirationDate          string `json:"ex_date"`
 	RecordDate              string `json:"record_date"`
 	PayableDate             string `json:"payable_date"`
 	Cash                    string `json:"cash"`
