@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,12 +23,14 @@ import (
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	APIKey     string
-	APISecret  string
-	OAuth      string
-	BaseURL    string
-	RetryLimit int
-	RetryDelay time.Duration
+	APIKey       string
+	APISecret    string
+	BrokerKey    string
+	BrokerSecret string
+	OAuth        string
+	BaseURL      string
+	RetryLimit   int
+	RetryDelay   time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
 	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
@@ -96,9 +99,12 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		req.Host = c.opts.RequestHost
 	}
 
-	if c.opts.OAuth != "" {
+	switch {
+	case c.opts.OAuth != "":
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	} else {
+	case c.opts.BrokerKey != "":
+		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
+	default:
 		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
 		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
@@ -203,7 +209,7 @@ func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) 
 	}
 
 	if limit != 0 {
-		q.Set("limit", fmt.Sprintf("%d", limit))
+		q.Set("limit", strconv.Itoa(limit))
 	}
 }
 
@@ -730,6 +736,7 @@ func (c *Client) GetLatestBars(symbols []string, req GetLatestBarRequest) (map[s
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestBarsResp latestBarsResponse
 	if err = unmarshal(resp, &latestBarsResp); err != nil {
@@ -772,6 +779,7 @@ func (c *Client) GetLatestTrades(symbols []string, req GetLatestTradeRequest) (m
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestTradesResp latestTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -814,6 +822,7 @@ func (c *Client) GetLatestQuotes(symbols []string, req GetLatestQuoteRequest) (m
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestQuotesResp latestQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -852,6 +861,7 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var snapshots snapshotsResponse
 	if err = unmarshal(resp, &snapshots); err != nil {
@@ -1153,6 +1163,7 @@ func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarReq
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestBarsResp latestCryptoBarsResponse
 	if err = unmarshal(resp, &latestBarsResp); err != nil {
@@ -1179,7 +1190,9 @@ func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeReq
 }
 
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols
-func (c *Client) GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoTrade, error) {
+func (c *Client) GetLatestCryptoTrades(
+	symbols []string, req GetLatestCryptoTradeRequest,
+) (map[string]CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/trades",
 		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
@@ -1193,6 +1206,7 @@ func (c *Client) GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTrad
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestTradesResp latestCryptoTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -1219,7 +1233,9 @@ func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteReq
 }
 
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
-func (c *Client) GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoQuote, error) {
+func (c *Client) GetLatestCryptoQuotes(
+	symbols []string, req GetLatestCryptoQuoteRequest,
+) (map[string]CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/quotes",
 		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
@@ -1233,6 +1249,7 @@ func (c *Client) GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuot
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestQuotesResp latestCryptoQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -1273,6 +1290,7 @@ func (c *Client) GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotReque
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var snapshots CryptoSnapshots
 	if err = unmarshal(resp, &snapshots); err != nil {
@@ -1349,13 +1367,13 @@ func (c *Client) setNewsQuery(q url.Values, p GetNewsRequest) {
 // GetNews returns the news articles based on the given req.
 func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 	if req.TotalLimit < 0 {
-		return nil, fmt.Errorf("negative total limit")
+		return nil, errors.New("negative total limit")
 	}
 	if req.PageLimit < 0 {
-		return nil, fmt.Errorf("negative page limit")
+		return nil, errors.New("negative page limit")
 	}
 	if req.NoTotalLimit && req.TotalLimit != 0 {
-		return nil, fmt.Errorf("both NoTotalLimit and non-zero TotalLimit specified")
+		return nil, errors.New("both NoTotalLimit and non-zero TotalLimit specified")
 	}
 	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/news", c.opts.BaseURL))
 	if err != nil {
@@ -1665,11 +1683,6 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
-	defer func() {
-		// The underlying TCP connection can not be reused if the body is not fully read
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
 	var (
 		reader io.ReadCloser
 		err    error
@@ -1685,4 +1698,10 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 		reader = resp.Body
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
+}
+
+func closeResp(resp *http.Response) {
+	// The underlying TCP connection can not be reused if the body is not fully read
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }

@@ -210,17 +210,17 @@ func defaultStockOptions() *stockOptions {
 				cancelErrors: []string{},
 				corrections:  []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		tradeHandler:         func(t Trade) {},
-		quoteHandler:         func(q Quote) {},
-		barHandler:           func(b Bar) {},
-		updatedBarHandler:    func(b Bar) {},
-		dailyBarHandler:      func(b Bar) {},
-		tradingStatusHandler: func(ts TradingStatus) {},
-		luldHandler:          func(l LULD) {},
-		cancelErrorHandler:   func(tce TradeCancelError) {},
-		correctionHandler:    func(tc TradeCorrection) {},
+		tradeHandler:         func(_ Trade) {},
+		quoteHandler:         func(_ Quote) {},
+		barHandler:           func(_ Bar) {},
+		updatedBarHandler:    func(_ Bar) {},
+		dailyBarHandler:      func(_ Bar) {},
+		tradingStatusHandler: func(_ TradingStatus) {},
+		luldHandler:          func(_ LULD) {},
+		cancelErrorHandler:   func(_ TradeCancelError) {},
+		correctionHandler:    func(_ TradeCorrection) {},
 	}
 }
 
@@ -355,14 +355,14 @@ func defaultCryptoOptions() *cryptoOptions {
 				dailyBars:   []string{},
 				orderbooks:  []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		tradeHandler:      func(t CryptoTrade) {},
-		quoteHandler:      func(q CryptoQuote) {},
-		barHandler:        func(b CryptoBar) {},
-		updatedBarHandler: func(b CryptoBar) {},
-		dailyBarHandler:   func(b CryptoBar) {},
-		orderbookHandler:  func(ob CryptoOrderbook) {},
+		tradeHandler:      func(_ CryptoTrade) {},
+		quoteHandler:      func(_ CryptoQuote) {},
+		barHandler:        func(_ CryptoBar) {},
+		updatedBarHandler: func(_ CryptoBar) {},
+		dailyBarHandler:   func(_ CryptoBar) {},
+		orderbookHandler:  func(_ CryptoOrderbook) {},
 	}
 }
 
@@ -466,10 +466,10 @@ func defaultOptionOptions() *optionOptions {
 				updatedBars: []string{},
 				dailyBars:   []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		tradeHandler: func(t OptionTrade) {},
-		quoteHandler: func(q OptionQuote) {},
+		tradeHandler: func(_ OptionTrade) {},
+		quoteHandler: func(_ OptionQuote) {},
 	}
 }
 
@@ -530,9 +530,9 @@ func defaultNewsOptions() *newsOptions {
 			sub: subscriptions{
 				news: []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		newsHandler: func(n News) {},
+		newsHandler: func(_ News) {},
 	}
 }
 

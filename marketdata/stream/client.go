@@ -358,7 +358,7 @@ func (c *client) Terminated() <-chan error {
 // and recreates them if there was an error as long as reconnectLimit consecutive
 // connection initialization errors don't occur. It sends the first connection
 // initialization's result to initialResultCh.
-func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResultCh chan<- error) {
+func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResultCh chan<- error) { //nolint:funlen,gocognit,lll // TODO: Refactor this.
 	var connError error
 	failedAttemptsInARow := 0
 	connectedAtLeastOnce := false
@@ -423,7 +423,8 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			}
 			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
 			failedAttemptsInARow++
-			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...", u.String(), failedAttemptsInARow, c.reconnectLimit)
+			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...",
+				u.String(), failedAttemptsInARow, c.reconnectLimit)
 			conn, err := c.connCreator(ctx, u)
 			if err != nil {
 				connError = err
@@ -534,7 +535,7 @@ func isErrorIrrecoverableAtInit(err error) bool {
 }
 
 func isHTTP4xx(err error) bool {
-	// Unfortunately the nhoory error is a simple formatted string, created by fmt.Errorf,
+	// Unfortunately the coder/websocket error is a simple formatted string, created by fmt.Errorf,
 	// so the only check we can do is string matching
 	pattern := `expected handshake response status code 101 but got 4\d\d`
 	ok, _ := regexp.MatchString(pattern, err.Error())
