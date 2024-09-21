@@ -517,6 +517,84 @@ func (c *Client) GetMultiBars(symbols []string, req GetBarsRequest) (map[string]
 	return bars, nil
 }
 
+
+type GetPagedBarsRequest struct {
+	GetBarsRequest
+	PageToken string
+}
+
+func (c *Client) setQueryPagedBarRequest(q url.Values, symbols []string, req GetPagedBarsRequest) {
+	c.setBasePaginatedQuery(q, basePaginatedRequest{ 
+		baseRequest: baseRequest{
+			Symbols:  symbols,
+			Start:    req.Start,
+			End:      req.End,
+			Feed:     req.Feed,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
+			Sort:     req.Sort,
+		},
+			PageToken: req.PageToken, 
+	})
+	adjustment := Raw
+	if req.Adjustment != "" {
+		adjustment = req.Adjustment
+	}
+	q.Set("adjustment", string(adjustment))
+	timeframe := OneDay
+	if req.TimeFrame.N != 0 {
+		timeframe = req.TimeFrame
+	}
+	q.Set("timeframe", timeframe.String())
+}
+
+
+// GetPagedBars returns a slice of bars for the given symbol and supports pagination.
+func (c *Client) GetPagedBars(symbol string, req GetPagedBarsRequest) ([]Bar, string, error) {
+	resp, nextPageToken, err := c.GetPagedMultiBars([]string{symbol}, req)
+	if err != nil {
+		return nil, "", err
+	}
+	return resp[symbol], nextPageToken, nil
+}
+
+// GetPagedMultiBars returns bars for the given symbols and supports pagination.
+func (c *Client) GetPagedMultiBars(symbols []string, req GetPagedBarsRequest) (map[string][]Bar, string, error) {
+	bars := make(map[string][]Bar, len(symbols))
+
+	u, err := url.Parse(fmt.Sprintf("%s/%s/bars", c.opts.BaseURL, stockPrefix))
+	if err != nil {
+		return nil, "", err
+	}
+
+	q := u.Query()
+	c.setQueryPagedBarRequest(q, symbols, req)
+
+	setQueryLimit(q, req.TotalLimit, req.PageLimit, 0, v2MaxLimit)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var barResp multiBarResponse
+	if err = unmarshal(resp, &barResp); err != nil {
+		return nil, "", err
+	}
+
+	for symbol, b := range barResp.Bars {
+		bars[symbol] = append(bars[symbol], b...)
+	}
+
+	if barResp.NextPageToken == nil {
+		return bars, "", nil
+	}
+
+	return bars, *barResp.NextPageToken, nil
+}
+
+
 // GetAuctionsRequest contains optional parameters for getting auctions
 type GetAuctionsRequest struct {
 	// Start is the inclusive beginning of the interval
