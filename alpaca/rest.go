@@ -757,6 +757,8 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 		return nil, err
 	}
 
+	fmt.Printf("--------------------- u: %+v\n", u)
+
 	q := u.Query()
 	if len(req.CATypes) != 0 {
 		q.Set("ca_types", strings.Join(req.CATypes, ","))
@@ -776,7 +778,11 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	if req.DateType != "" {
 		q.Set("date_type", string(req.DateType))
 	}
+	
 	u.RawQuery = q.Encode()
+
+	fmt.Printf("-------------------- u.RawQuery: %s\n",u.RawQuery)
+
 
 	resp, err := c.get(u)
 	if err != nil {
